@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import './App.css';
 import './styles/restroomCards.css';
-import royalFlushLogo from './assets/royal_flush_logo.png';
 import MapView from './components/MapView';
+import BrandLogo from './components/BrandLogo';
 import { authApi, mapsApi, reviewsApi } from './api';
 import ReviewsPage from './components/ReviewsPage';
 import BookmarksPage from './components/BookmarksPage';
 import MyReviewsPage from './components/MyReviewsPage';
+import LoginPage from './components/LoginPage'
+import SignUpPage from './components/SignUpPage';
+import AppNav from './components/AppNav';
 
 function toMiles(meters = 0) {
   return (meters * 0.000621371).toFixed(2);
@@ -54,15 +57,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    authApi
-      .getSession()
-      .then((session) => {
-        setUser(session?.success ? session.user : null);
-      })
-      .catch(() => {
-        setUser(null);
-      });
-  }, []);
+    const fetchUser = async () => {
+        try {
+            const data = await authApi.getCurrentUser()
+            setUser(data.user)
+        } catch {
+            setUser(null)
+        }
+    }
+    fetchUser()
+  }, [])
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -269,7 +273,7 @@ function App() {
   const toggleFavorite = useCallback(async (locationId, shouldFavorite) => {
     if (!locationId) return;
     if (!user) {
-      window.location.href = authApi.githubLoginUrl;
+      navigate('/login');
       return;
     }
 
@@ -289,11 +293,17 @@ function App() {
   }, [loadFavorites, user]);
 
   const handleLogout = async () => {
-    await authApi.logout();
-    setUser(null);
-    setFavorites([]);
-    setFavoriteLocationIds([]);
-  };
+    try {
+        await authApi.logout()
+        setUser(null)
+        setFavorites([])
+        setFavoriteLocationIds([])
+        window.location.href = '/'
+
+    } catch (error) {
+        console.error(error)
+    }
+  }
 
   const showAllowAccessButton =
     error === 'Unable to get your location. Please allow location access.';
@@ -306,13 +316,13 @@ function App() {
           <div className="app home-page">
       <header className="app-header">
         <div className="brand">
-          <img src={royalFlushLogo} alt="Royal Flush logo" className="brand-logo-image" />
+          <BrandLogo />
           <div className="brand-copy">
             <h1 className="brand-title">Royal Flush</h1>
             <p className="brand-subtitle">Find nearby restrooms in style</p>
           </div>
         </div>
-        <nav className="user-links">
+        <AppNav menuLabel={user ? 'Account menu' : 'Log in or sign up'}>
           {user ? (
             <>
               <Link to="/bookmarks" className="details-link">
@@ -327,14 +337,15 @@ function App() {
             </>
           ) : (
             <>
-              <a href={authApi.githubLoginUrl}>Log In</a>
-              <a href={authApi.githubLoginUrl}>Sign Up</a>
+              <Link to="/login">Log In</Link>
+              <Link to="/signup">Sign Up</Link>
             </>
           )}
-        </nav>
+        </AppNav>
       </header>
 
       <section className="search-panel">
+        <div className="search-controls-slim">
         <div className="location-controls">
           <button
             type="button"
@@ -361,13 +372,13 @@ function App() {
         </div>
 
         {error && (
-        <div className="error" style={{marginTop: '20px'}}>
+        <div className="error error-retry">
           <span>{error}</span>
           {showAllowAccessButton && (
             <button
               type="button"
+              className="location-btn error-retry-btn"
               onClick={getUserLocation}
-              style={{ marginLeft: '0.75rem'}}
             >
               Allow access
             </button>
@@ -375,27 +386,26 @@ function App() {
         </div>
       )}
 
-        <div className="preference-filters">
-          <div className="preference-filter-header">
-            <div>
+        <div className="preference-filters preference-filters--slim preference-filters--compact">
+          <div className="preference-filters-layout">
+            <div className="preference-filter-intro">
               <p className="ranking-eyebrow">Bathroom preferences</p>
               <h2 className="preference-filter-title">Filter by what matters to you</h2>
+              <button
+                type="button"
+                className="preference-reset-btn"
+                onClick={() =>
+                  setFilters({
+                    maxDistance: 'all',
+                    minRating: 'all',
+                  })
+                }
+              >
+                Reset filters
+              </button>
             </div>
-            <button
-              type="button"
-              className="preference-reset-btn"
-              onClick={() =>
-                setFilters({
-                  maxDistance: 'all',
-                  minRating: 'all',
-                })
-              }
-            >
-              Reset filters
-            </button>
-          </div>
 
-          <div className="preference-filter-grid">
+            <div className="preference-filter-grid">
             <label className="preference-filter-field">
               <span>Distance</span>
               <select
@@ -421,11 +431,13 @@ function App() {
                 <option value="3">3.0 and up</option>
               </select>
             </label>
+            </div>
           </div>
         </div>
+        </div>
 
-        <div>
-          <h1 style={{color: 'black', fontSize: '20px', fontWeight: 'bold'}}>MAP VIEW</h1>
+        <section className="map-section">
+          <h2 className="map-section-title">Map view</h2>
           <MapView
             userLocation={location}
             onPlacesFound={handleMapPlacesFound}
@@ -434,16 +446,14 @@ function App() {
             reviewSummaryByLocation={reviewSummaryByLocation}
             favoriteLocationIds={favoriteLocationIds}
             isLoggedIn={Boolean(user)}
-            onRequireLogin={() => {
-              window.location.href = authApi.githubLoginUrl;
-            }}
+            onRequireLogin={() => navigate('/login')}
             onLeaveReview={(locationId, openComposer) => {
               navigate(`/review/${locationId}${openComposer ? '?open=1' : ''}`);
             }}
             onToggleFavorite={toggleFavorite}
             favoriteLoadingId={favoriteLoadingId}
           />
-        </div>
+        </section>
 
         <div className="results-summary">
           {!location
@@ -614,6 +624,8 @@ function App() {
         path="/reviews"
         element={<MyReviewsPage user={user} onUserChange={setUser} />}
       />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage/>}/>
     </Routes>
   );
 }

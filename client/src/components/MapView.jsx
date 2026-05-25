@@ -7,11 +7,18 @@ import {
   useJsApiLoader,
 } from '@react-google-maps/api';
 import bathroomIconUrl from '../assets/toliet_logo.png';
+import './MapView.css';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const LIBRARIES = ['places', 'geometry'];
 
-const mapContainerStyle = { width: '100%', height: '50vh' };
+const mapContainerStyle = { width: '100%', height: '100%' };
+
+const mapOptions = {
+  mapTypeControl: false,
+  streetViewControl: false,
+  fullscreenControl: true,
+};
 
 const defaultCenter = { lat: 40.7128, lng: -73.9352 };
 
@@ -130,35 +137,38 @@ export default function MapView({
 
   if (loadError) {
     return (
-      <div style={{ padding: '1rem', color: '#c00' }}>
+      <div className="map-view-status map-view-status--error">
         Map failed to load. Check your Google Maps API key and that Places is enabled.
       </div>
     );
   }
 
   if (!isLoaded) {
-    return <div style={{ padding: '1rem' }}>Loading map…</div>;
+    return <div className="map-view-status">Loading map…</div>;
   }
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
-      <div style={{ padding: '1rem', color: '#c00' }}>
+      <div className="map-view-status map-view-status--error">
         Set VITE_GOOGLE_MAPS_API_KEY in your environment to show the map.
       </div>
     );
   }
 
   return (
-    <div>
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={mapCenter}
-        zoom={userLocation ? 15 : 12}
-        clickableIcons={false}
-        onClick={() => setSelectedPlace(null)}
-        onLoad={(mapInstance) => setMap(mapInstance)}
-        onUnmount={() => setMap(null)}
-      >
+    <div className="map-view-root">
+      <div className="map-view">
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          mapContainerClassName="map-view__canvas"
+          options={mapOptions}
+          center={mapCenter}
+          zoom={userLocation ? 15 : 12}
+          clickableIcons={false}
+          onClick={() => setSelectedPlace(null)}
+          onLoad={(mapInstance) => setMap(mapInstance)}
+          onUnmount={() => setMap(null)}
+        >
       {userLocation && (
         <>
           <Marker
@@ -166,9 +176,9 @@ export default function MapView({
             icon={{
               path: window.google.maps.SymbolPath.CIRCLE,
               scale: 8,
-              fillColor: '#4285F4',
+              fillColor: '#D4AF37',
               fillOpacity: 1,
-              strokeColor: 'white',
+              strokeColor: '#0B0B0B',
               strokeWeight: 2,
             }}
           />
@@ -177,7 +187,7 @@ export default function MapView({
             center={userLocation}
             radius={50}
             options={{
-              fillColor: '#4285F4',
+              fillColor: '#D4AF37',
               fillOpacity: 0.2,
               strokeOpacity: 0,
             }}
@@ -206,30 +216,12 @@ export default function MapView({
           }}
           onCloseClick={() => setSelectedPlace(null)}
         >
-          <div style={{ position: 'relative', paddingTop: '8px', minWidth: '180px' }}>
+          <div className="map-info-window">
             <button
               type="button"
+              className="map-info-window__close"
               onClick={() => setSelectedPlace(null)}
               aria-label="Close restroom details"
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                border: 'none',
-                background: 'rgba(255, 255, 255, 0.95)',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                color: 'red',
-                lineHeight: 1,
-                borderRadius: '999px',
-                width: '22px',
-                height: '22px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-              }}
             >
               X
             </button>
@@ -240,31 +232,31 @@ export default function MapView({
               const summary = locationId ? reviewSummaryByLocation?.[locationId] : null;
               const average = summary?.average_rating;
               return average != null ? (
-                <p style={{ margin: '0 0 6px', fontSize: '0.9rem', fontWeight: 700 }}>
+                <p className="map-info-window__rating">
                   {renderStars(average)} ({average}/5)
                 </p>
               ) : (
-                <p style={{ margin: '0 0 6px', fontSize: '0.9rem', fontWeight: 700 }}>No Reviews</p>
+                <p className="map-info-window__no-reviews">No Reviews</p>
               );
             })()}
-            <h3 style={{ margin: '0 0 8px', fontSize: '1rem' }}>{selectedPlace.name}</h3>
-            <p style={{ margin: 0, fontSize: '0.875rem' }}>{selectedPlace.vicinity}</p>
+            <h3 className="map-info-window__title">{selectedPlace.name}</h3>
+            <p className="map-info-window__address">{selectedPlace.vicinity}</p>
             {(() => {
               const placeId = selectedPlace.place_id;
               const locationId = placeId ? locationIdByPlaceId?.[placeId] : null;
               const summary = locationId ? reviewSummaryByLocation?.[locationId] : null;
               const isFavorited = locationId ? favoriteLocationIds?.includes(locationId) : false;
               return (
-                <div style={{ marginTop: '10px' }}>
+                <div className="map-info-window__actions">
                   {summary?.average_rating != null && (
-                    <p style={{ margin: '0 0 6px', fontSize: '0.8rem', color: '#444' }}>
+                    <p className="map-info-window__review-count">
                       {summary.review_count} review{summary.review_count === 1 ? '' : 's'}
                     </p>
                   )}
                   {locationId && (
                     <button
                       type="button"
-                      style={{ marginRight: '8px' }}
+                      className="map-info-window__btn map-info-window__btn--secondary"
                       onClick={() => onToggleFavorite?.(locationId, !isFavorited)}
                       disabled={favoriteLoadingId === locationId}
                     >
@@ -280,6 +272,7 @@ export default function MapView({
                   )}
                   <button
                     type="button"
+                    className="map-info-window__btn"
                     onClick={() => {
                       if (!locationId) return;
                       if (isLoggedIn) {
@@ -298,9 +291,10 @@ export default function MapView({
           </div>
         </InfoWindow>
       )}
-      </GoogleMap>
+        </GoogleMap>
+      </div>
       {showNoNearbyMessage && (
-        <p style={{ margin: '0.75rem 0 0', color: '#444', fontWeight: 600 }}>
+        <p className="map-view-message">
           No nearby public toliets
         </p>
       )}

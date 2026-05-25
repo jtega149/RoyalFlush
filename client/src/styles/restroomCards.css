@@ -1,17 +1,28 @@
 .results-grid {
   display: grid;
-  gap: 18px;
+  gap: 20px;
   width: min(100%, 880px);
+  max-width: 100%;
   margin: 0 auto;
 }
 
 .result-card {
-  padding: 22px 24px;
-  border-radius: 20px;
-  background: linear-gradient(165deg, #1f1f1f 0%, #151515 100%);
-  border: 1px solid rgba(195, 160, 92, 0.3);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.26);
-  color: #ededed;
+  padding: 24px 26px;
+  border-radius: var(--rf-radius-xl);
+  background: linear-gradient(165deg, var(--rf-surface-raised) 0%, var(--rf-surface) 55%, var(--rf-bg) 100%);
+  border: 1px solid var(--rf-gold-border);
+  box-shadow: var(--rf-shadow-md);
+  color: var(--rf-text);
+  transition:
+    transform var(--rf-duration) var(--rf-ease),
+    box-shadow var(--rf-duration) var(--rf-ease),
+    border-color var(--rf-duration) var(--rf-ease);
+}
+
+.result-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--rf-gold-border-strong);
+  box-shadow: var(--rf-shadow-lg), var(--rf-shadow-gold);
 }
 
 .card-topline {
@@ -19,39 +30,41 @@
   justify-content: space-between;
   align-items: center;
   gap: 14px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .card-label {
-  color: #c8c8cc;
-  letter-spacing: 0.08em;
+  color: var(--rf-text-muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .card-distance {
-  padding: 6px 11px;
-  border-radius: 999px;
-  border: 1px solid rgba(195, 160, 92, 0.55);
-  background: rgba(195, 160, 92, 0.12);
-  color: #d9bb7d;
+  padding: 6px 12px;
+  border-radius: var(--rf-radius-pill);
+  border: 1px solid var(--rf-gold-border-strong);
+  background: var(--rf-gold-muted);
+  color: var(--rf-gold);
   font-size: 12px;
   font-weight: 600;
 }
 
 .card-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.45rem;
   line-height: 1.2;
-  color: #f7f7f8;
+  color: var(--rf-text);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .card-address {
-  margin: 12px 0 16px;
-  color: #b7b7bc;
+  margin: 12px 0 18px;
+  color: var(--rf-text-secondary);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .card-meta {
@@ -59,20 +72,21 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 18px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rf-divider);
 }
 
 .card-meta-label {
-  color: #8f8f96;
-  font-size: 12px;
+  color: var(--rf-text-muted);
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .card-meta-value {
-  color: #f0dca7;
+  color: var(--rf-gold-soft);
   font-size: 13px;
   font-weight: 600;
   text-align: right;
@@ -89,31 +103,31 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: -4px 0 16px;
+  margin: -2px 0 16px;
 }
 
 .ranking-badge {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #e5e5e7;
+  padding: 6px 11px;
+  border-radius: var(--rf-radius-pill);
+  background: var(--rf-bg);
+  border: 1px solid var(--rf-border);
+  color: var(--rf-text-secondary);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .ranking-badge--best {
-  background: rgba(217, 187, 125, 0.16);
-  border-color: rgba(217, 187, 125, 0.4);
-  color: #f0dca7;
+  background: var(--rf-gold-muted);
+  border-color: var(--rf-gold-border);
+  color: var(--rf-gold-soft);
 }
 
 .ranking-badge--worst {
-  background: rgba(181, 106, 106, 0.16);
-  border-color: rgba(181, 106, 106, 0.4);
-  color: #f2b6b6;
+  background: rgba(180, 90, 90, 0.12);
+  border-color: rgba(200, 120, 120, 0.35);
+  color: #f2b0b0;
 }
 
 .bookmark-btn {
@@ -121,30 +135,38 @@
   align-items: center;
   justify-content: center;
   min-width: 120px;
-  padding: 9px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
-  color: #f3f3f4;
+  padding: 10px 16px;
+  border-radius: var(--rf-radius-pill);
+  border: 1px solid var(--rf-border);
+  background: transparent;
+  color: var(--rf-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color var(--rf-duration) var(--rf-ease),
+    color var(--rf-duration) var(--rf-ease),
+    background var(--rf-duration) var(--rf-ease),
+    transform var(--rf-duration) var(--rf-ease);
 }
 
 .bookmark-btn:hover:not(:disabled) {
-  border-color: rgba(195, 160, 92, 0.6);
-  color: #f0dca7;
+  border-color: var(--rf-gold-border-strong);
+  color: var(--rf-gold-soft);
+  background: var(--rf-gold-muted);
+  transform: translateY(-1px);
 }
 
 .bookmark-btn:disabled {
-  opacity: 0.65;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .bookmark-btn--saved {
-  border-color: rgba(195, 160, 92, 0.7);
-  background: rgba(195, 160, 92, 0.14);
-  color: #f0dca7;
+  border-color: var(--rf-gold-border-strong);
+  background: var(--rf-gold-muted);
+  color: var(--rf-gold);
 }
 
 .result-details-link {
@@ -152,27 +174,44 @@
   align-items: center;
   justify-content: center;
   min-width: 120px;
-  padding: 9px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(195, 160, 92, 0.7);
-  background: rgba(195, 160, 92, 0.1);
-  color: #f0dca7;
+  padding: 10px 16px;
+  border-radius: var(--rf-radius-pill);
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--rf-gold) 0%, var(--rf-gold-bright) 100%);
+  color: #0b0b0b;
   text-decoration: none;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
+  transition:
+    transform var(--rf-duration) var(--rf-ease),
+    box-shadow var(--rf-duration) var(--rf-ease),
+    filter var(--rf-duration) var(--rf-ease);
 }
 
 .result-details-link:hover {
-  background: rgba(195, 160, 92, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(212, 175, 55, 0.3);
+  filter: brightness(1.04);
 }
 
 @media (max-width: 768px) {
   .results-grid {
     gap: 16px;
+    width: 100%;
+    padding: 0;
   }
 
   .result-card {
-    padding: 18px;
+    padding: 20px;
+  }
+
+  .card-topline {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .card-title {
+    font-size: 1.3rem;
   }
 
   .card-meta {
@@ -185,6 +224,13 @@
   }
 
   .card-footer {
-    justify-content: flex-start;
+    justify-content: stretch;
+    flex-direction: column;
+  }
+
+  .bookmark-btn,
+  .result-details-link {
+    width: 100%;
+    min-width: 0;
   }
 }

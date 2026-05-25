@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { authApi, reviewsApi } from '../api';
 import './ReviewsPage.css';
-import royalFlushLogo from '../assets/royal_flush_logo.png';
+import AppNav from './AppNav';
+import BrandLogo from './BrandLogo';
+import ReviewImageCarousel from './ReviewImageCarousel';
 
 export default function ReviewsPage({
   user,
@@ -137,13 +139,13 @@ export default function ReviewsPage({
     <div className="app reviews-page">
       <header className="app-header">
         <div className="brand">
-          <img src={royalFlushLogo} alt="Royal Flush logo" className="brand-logo-image" />
+          <BrandLogo />
           <div className="brand-copy">
             <h1 className="brand-title">Royal Flush Reviews</h1>
             <p className="brand-subtitle">{location?.name || 'Bathroom'}</p>
           </div>
         </div>
-        <nav className="user-links">
+        <AppNav menuLabel="Navigation menu">
           <Link to="/reviews" className="details-link">
             My Reviews
           </Link>
@@ -153,7 +155,7 @@ export default function ReviewsPage({
           <Link to="/" className="details-link">
             Back to map
           </Link>
-        </nav>
+        </AppNav>
       </header>
 
       {loading ? (
@@ -225,11 +227,7 @@ export default function ReviewsPage({
                 </div>
                 <p className="card-address">Description: {review.description}</p>
                 {review.image_urls?.length > 0 && (
-                  <div className="review-image-grid">
-                    {review.image_urls.map((imageUrl) => (
-                      <img key={imageUrl} src={imageUrl} alt="Review upload" className="review-image" />
-                    ))}
-                  </div>
+                  <ReviewImageCarousel imageUrls={review.image_urls} alt="Review upload" />
                 )}
                 {user?.id === review.user_id && (
                   <div className="review-owner-actions">

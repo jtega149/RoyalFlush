@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import royalFlushLogo from '../assets/royal_flush_logo.png';
+import AppNav from './AppNav';
+import BrandLogo from './BrandLogo';
 import { authApi, reviewsApi } from '../api';
 import './ReviewsPage.css';
+import ReviewImageCarousel from './ReviewImageCarousel';
 
 function renderStars(rating) {
   const rounded = Math.round(Number(rating) || 0);
@@ -60,25 +62,27 @@ export default function MyReviewsPage({ user, onUserChange }) {
       <div className="app reviews-page">
         <header className="app-header">
           <div className="brand">
-            <img src={royalFlushLogo} alt="Royal Flush logo" className="brand-logo-image" />
+            <BrandLogo />
             <div className="brand-copy">
               <h1 className="brand-title">My Reviews</h1>
               <p className="brand-subtitle">Sign in to track your restroom feedback</p>
             </div>
           </div>
-          <nav className="user-links">
+          <AppNav menuLabel="Log in or sign up">
+            <Link to="/login">Log In</Link>
+            <Link to="/signup">Sign Up</Link>
             <Link to="/bookmarks" className="details-link">
               Bookmarks
             </Link>
             <Link to="/" className="details-link">
               Back to map
             </Link>
-          </nav>
+          </AppNav>
         </header>
 
         <section className="saved-restrooms-panel">
           <div className="saved-restrooms-empty">
-            <p style={{ margin: '0 0 12px' }}>
+            <p className="empty-state-lead">
               Sign in to see the restroom reviews you have written so far.
             </p>
             <button type="button" onClick={handleLogin} className="review-action-btn review-action-btn--primary">
@@ -94,20 +98,20 @@ export default function MyReviewsPage({ user, onUserChange }) {
     <div className="app reviews-page">
       <header className="app-header">
         <div className="brand">
-          <img src={royalFlushLogo} alt="Royal Flush logo" className="brand-logo-image" />
+          <BrandLogo />
           <div className="brand-copy">
             <h1 className="brand-title">My Reviews</h1>
             <p className="brand-subtitle">Every restroom you have reviewed so far</p>
           </div>
         </div>
-        <nav className="user-links">
+        <AppNav menuLabel="Navigation menu">
           <Link to="/bookmarks" className="details-link">
             Bookmarks
           </Link>
           <Link to="/" className="details-link">
             Back to map
           </Link>
-        </nav>
+        </AppNav>
       </header>
 
       {loading ? (
@@ -143,11 +147,7 @@ export default function MyReviewsPage({ user, onUserChange }) {
                   </p>
 
                   {review.image_urls?.length > 0 && (
-                    <div className="review-image-grid">
-                      {review.image_urls.map((imageUrl) => (
-                        <img key={imageUrl} src={imageUrl} alt="Your review upload" className="review-image" />
-                      ))}
-                    </div>
+                    <ReviewImageCarousel imageUrls={review.image_urls} alt="Your review upload" />
                   )}
 
                   <div className="card-footer">

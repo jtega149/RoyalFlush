@@ -1,3 +1,4 @@
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 async function request(path, options = {}) {
@@ -28,10 +29,31 @@ async function request(path, options = {}) {
   return data
 }
 
+/*
 export const authApi = {
   getSession: () => request('/auth/login/success'),
   logout: () => request('/auth/logout'),
   githubLoginUrl: `${API_BASE}/auth/github`,
+}*/
+
+export const authApi = {
+  getCurrentUser: () => request('/auth/me'),
+  logout: () => request('/auth/logout', {method: 'POST'}),
+  login: (email, password) => request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      password,
+    })
+  }),
+  signup: (username, email, password) => request('/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({
+      username,
+      email,
+      password
+    })
+  })
 }
 
 export const mapsApi = {

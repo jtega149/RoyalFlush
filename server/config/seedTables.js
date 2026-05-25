@@ -7,10 +7,11 @@ const seedUsersTable = async () => {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
             id serial PRIMARY KEY,
-            githubid int NOT NULL,
             username varchar(200) NOT NULL,
-            avatarurl varchar(500),
-            accesstoken varchar(500) NOT NULL
+            email varchar(200) NOT NULL,
+            hashed_password varchar(200) NOT NULL,
+            created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
     `)
     console.log('Users table created successfully.')

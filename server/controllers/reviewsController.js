@@ -75,7 +75,7 @@ export default {
       }
 
       const reviewsResult = await pool.query(
-        `SELECT r.*, u.username, u.avatarurl
+        `SELECT r.*, u.username
          FROM reviews r
          JOIN users u ON u.id = r.user_id
          WHERE r.location_id = $1

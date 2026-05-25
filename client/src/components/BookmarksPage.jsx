@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import royalFlushLogo from '../assets/royal_flush_logo.png';
 import { authApi } from '../api';
+import AppNav from './AppNav';
+import BrandLogo from './BrandLogo';
 
 function BookmarkLabel({ children }) {
   return (
@@ -22,25 +23,27 @@ export default function BookmarksPage({
       <div className="app home-page">
         <header className="app-header">
           <div className="brand">
-            <img src={royalFlushLogo} alt="Royal Flush logo" className="brand-logo-image" />
+            <BrandLogo />
             <div className="brand-copy">
               <h1 className="brand-title">Bookmarks</h1>
               <p className="brand-subtitle">Sign in to save your go-to restrooms</p>
             </div>
           </div>
-          <nav className="user-links">
+          <AppNav menuLabel="Navigation menu">
+            <Link to="/login">Log In</Link>
+            <Link to="/signup">Sign Up</Link>
             <Link to="/reviews" className="details-link">
               My Reviews
             </Link>
             <Link to="/" className="details-link">
               Back to map
             </Link>
-          </nav>
+          </AppNav>
         </header>
 
         <section className="saved-restrooms-panel">
           <div className="saved-restrooms-empty">
-            <p style={{ margin: '0 0 12px' }}>
+            <p className="empty-state-lead">
               Your bookmarked restrooms live here once you are signed in.
             </p>
             <a href={authApi.githubLoginUrl} className="saved-restroom-link">
@@ -56,20 +59,20 @@ export default function BookmarksPage({
     <div className="app home-page">
       <header className="app-header">
         <div className="brand">
-          <img src={royalFlushLogo} alt="Royal Flush logo" className="brand-logo-image" />
+          <BrandLogo />
           <div className="brand-copy">
             <h1 className="brand-title">Bookmarks</h1>
             <p className="brand-subtitle">Your saved restrooms in one place</p>
           </div>
         </div>
-        <nav className="user-links">
+        <AppNav menuLabel="Navigation menu">
           <Link to="/reviews" className="details-link">
             My Reviews
           </Link>
           <Link to="/" className="details-link">
             Back to map
           </Link>
-        </nav>
+        </AppNav>
       </header>
 
       <section className="saved-restrooms-panel">

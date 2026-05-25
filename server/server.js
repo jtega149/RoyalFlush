@@ -1,11 +1,9 @@
 import './config/loadEnv.js'
 import express from 'express';
 import cors from 'cors';
-import passport from 'passport'
-import session from 'express-session'
+import cookieParser from 'cookie-parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { GitHub } from './config/auth.js'
 import authRoutes from './routes/auth.js'
 import reviewsRoutes from './routes/reviewsRoutes.js'
 import { seedAllTables } from './config/seedTables.js'
@@ -16,32 +14,13 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://web103-finalproject-royalflush-1.onrender.com'],
+  origin: ['http://localhost:5173'],
   methods: 'GET,POST,PUT,DELETE,PATCH',
   credentials: true
 }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-
-// Express session middleware
-app.use(session({
-  secret: process.env.SECRET_KEY,
-  resave: false,
-  saveUninitialized: true
-}))
-
-// Passport middleware
-app.use(passport.initialize());
-app.use(passport.session());
-
-//Paasport to use GitHub strategy
-passport.use(GitHub);
-passport.serializeUser((user, done) => {
-  done(null, user)
-})
-passport.deserializeUser((user, done) => {
-  done(null, user)
-})
+app.use(cookieParser());
 
 // Routes
 app.use('/auth', authRoutes)
