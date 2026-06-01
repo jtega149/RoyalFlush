@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AppNav from './AppNav';
 import BrandLogo from './BrandLogo';
-import { authApi, reviewsApi } from '../api';
+import { authApi, getErrorMessage, reviewsApi } from '../api';
 import './ReviewsPage.css';
 import ReviewImageCarousel from './ReviewImageCarousel';
 
@@ -31,7 +31,7 @@ export default function MyReviewsPage({ user, onUserChange }) {
         const data = await reviewsApi.getMyReviews();
         if (isMounted) setReviews(data);
       } catch (loadError) {
-        if (isMounted) setError(loadError.message || 'Unable to load your reviews');
+        if (isMounted) setError(getErrorMessage(loadError, 'Unable to load your reviews'));
       } finally {
         if (isMounted) setLoading(false);
       }

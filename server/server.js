@@ -7,30 +7,62 @@ import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import reviewsRoutes from './routes/reviewsRoutes.js'
 import { seedAllTables } from './config/seedTables.js'
+import rateLimit from 'express-rate-limit'
+import { handleJsonSyntaxError, handleUploadError } from './middleware/errorHandler.js'
+import { sanitizeString, sendValidationError, LIMITS } from './utils/validation.js'
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  standardHeaders: true,  // sends RateLimit-* headers
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later.' },
+})
+const geocodeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many address searches. Slow down.' },
+})
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1)
+}
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.CLIENT_URL,
+].filter(Boolean)
+
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: allowedOrigins,
   methods: 'GET,POST,PUT,DELETE,PATCH',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use(globalLimiter)
 app.use(cookieParser());
 
 // Routes
 app.use('/auth', authRoutes)
 app.use('/reviews', reviewsRoutes)
 
-app.get('/api/geocode', async (req, res) => {
-  const address = String(req.query.address || '').trim()
-  if (!address) {
-    return res.status(400).json({ message: 'address query parameter is required' })
+app.get('/api/geocode', geocodeLimiter, async (req, res) => {
+  const addressResult = sanitizeString(req.query.address, {
+    maxLength: LIMITS.GEOCODE_ADDRESS_MAX,
+    fieldName: 'Address',
+  })
+  if (!addressResult.ok) {
+    return sendValidationError(res, addressResult.error)
   }
+  const address = addressResult.value
   const key = process.env.GOOGLE_MAPS_API_KEY
   if (!key) {
     return res.status(503).json({
@@ -56,6 +88,9 @@ app.get('/api/geocode', async (req, res) => {
     return res.status(500).json({ message: 'Geocoding request failed.' })
   }
 })
+
+app.use(handleJsonSyntaxError)
+app.use(handleUploadError)
 
 seedAllTables()
   .then(() => {

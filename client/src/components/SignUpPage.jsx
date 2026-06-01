@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { authApi } from '../api'
+import { authApi, getErrorMessage } from '../api'
 import { Link } from 'react-router-dom'
 import '../styles/LoginPage.css'
 
@@ -65,9 +65,7 @@ const SignUpPage = () => {
         } catch (err) {
             console.error(err)
 
-            setError(
-                err.message || 'Unable to create account'
-            )
+            setError(getErrorMessage(err, 'Unable to create account'))
 
         } finally {
             setLoading(false)

@@ -14,6 +14,10 @@ const seedUsersTable = async () => {
             updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
     `)
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx
+      ON users (email);
+    `)
     console.log('Users table created successfully.')
   } catch (error) {
     console.log('Error seeding users table:', error)

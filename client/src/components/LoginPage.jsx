@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react'
-import { authApi } from '../api'
+import { authApi, getErrorMessage } from '../api'
 import '../styles/LoginPage.css'
 
 const LoginPage = () => {
@@ -28,7 +28,7 @@ const LoginPage = () => {
             window.location.href = '/'
         } catch (err) {
             console.error(err)
-            setError(err.message || 'Server Error')
+            setError(getErrorMessage(err, 'Server Error'))
         } finally {
             setLoading(false)
         }

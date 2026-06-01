@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { authApi, reviewsApi } from '../api';
+import { authApi, getErrorMessage, reviewsApi } from '../api';
 import './ReviewsPage.css';
 import AppNav from './AppNav';
 import BrandLogo from './BrandLogo';
@@ -20,6 +20,7 @@ export default function ReviewsPage({
   const [location, setLocation] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
   const [showModal, setShowModal] = useState(searchParams.get('open') === '1');
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [form, setForm] = useState({ rating: 0, description: '', imageFiles: [], existingImageUrls: [] });
@@ -33,7 +34,7 @@ export default function ReviewsPage({
       setLocation(data.location);
       setReviews(data.reviews);
     } catch (loadError) {
-      setError(loadError.message || 'Unable to load reviews');
+      setError(getErrorMessage(loadError, 'Unable to load reviews'));
     } finally {
       setLoading(false);
     }
@@ -50,6 +51,7 @@ export default function ReviewsPage({
   const openCreateModal = () => {
     setEditingReviewId(null);
     setForm({ rating: 0, description: '', imageFiles: [], existingImageUrls: [] });
+    setFormError('');
     setShowModal(true);
   };
 
@@ -61,6 +63,7 @@ export default function ReviewsPage({
       imageFiles: [],
       existingImageUrls: review.image_urls || [],
     });
+    setFormError('');
     setShowModal(true);
   };
 
@@ -77,6 +80,7 @@ export default function ReviewsPage({
   const submitReview = async (event) => {
     event.preventDefault();
     setSubmitting(true);
+    setFormError('');
     try {
       const loggedInUser = await ensureSession();
       if (!loggedInUser) {
@@ -101,9 +105,10 @@ export default function ReviewsPage({
       setShowModal(false);
       setEditingReviewId(null);
       setForm({ rating: 0, description: '', imageFiles: [], existingImageUrls: [] });
+      setFormError('');
       await loadReviews();
     } catch (submitError) {
-      setError(submitError.message || 'Unable to submit review');
+      setFormError(getErrorMessage(submitError, 'Unable to submit review'));
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +119,7 @@ export default function ReviewsPage({
       await reviewsApi.deleteReview(reviewId);
       await loadReviews();
     } catch (deleteError) {
-      setError(deleteError.message || 'Unable to delete review');
+      setError(getErrorMessage(deleteError, 'Unable to delete review'));
     }
   };
 
@@ -249,6 +254,7 @@ export default function ReviewsPage({
         <div className="review-modal-backdrop">
           <div className="review-modal">
             <h3>{editingReviewId ? 'Edit review' : 'Leave a review'}</h3>
+            {formError && <div className="error">{formError}</div>}
             <form onSubmit={submitReview} className="review-form">
               <label htmlFor="rating">Your rating</label>
               <div className="review-stars-input" role="radiogroup" aria-label="Select rating from one to five stars">

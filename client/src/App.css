@@ -678,6 +678,7 @@
   background: linear-gradient(165deg, var(--rf-surface) 0%, var(--rf-bg) 100%);
   border: 1px solid var(--rf-gold-border);
   box-shadow: var(--rf-shadow-md);
+  text-align: left;
 }
 
 .saved-restrooms-header {

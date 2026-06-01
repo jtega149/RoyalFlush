@@ -1,4 +1,16 @@
 import { pool } from '../config/database.js'
+import bucket from '../config/storage.js'
+import {
+  LIMITS,
+  parseExistingImageUrls,
+  parseLocationIdsQuery,
+  parsePositiveInt,
+  parseRating,
+  sanitizeImageExtension,
+  sendValidationError,
+  validateDescription,
+  validateLocationInput,
+} from '../utils/validation.js'
 
 function parseImageUrls(value) {
   if (!value) return []
@@ -20,18 +32,25 @@ function parseImageUrls(value) {
 export default {
   async syncLocations(req, res) {
     const { locations } = req.body
-    if (!Array.isArray(locations) || locations.length === 0) {
-      return res.status(400).json({ message: 'locations array is required' })
+    if (!Array.isArray(locations)) {
+      return sendValidationError(res, 'locations must be an array')
+    }
+    if (locations.length === 0) {
+      return sendValidationError(res, 'locations array is required')
+    }
+    if (locations.length > LIMITS.LOCATIONS_SYNC_MAX) {
+      return sendValidationError(res, `Too many locations (max ${LIMITS.LOCATIONS_SYNC_MAX})`)
     }
 
     try {
       const syncedLocations = []
       for (const location of locations) {
-        const { placeId, name, address, latitude, longitude } = location
-        if (!placeId || !name || latitude == null || longitude == null) continue
+        const validated = validateLocationInput(location)
+        if (!validated.ok) {
+          return sendValidationError(res, validated.error)
+        }
+        const { placeId, name, address, latitude, longitude } = validated.value
 
-        // Check if location exists or not, if it doesnt create it in our db, else update it
-        // Return the array of locations that are near to the user's location
         const result = await pool.query(
           `INSERT INTO locations (google_place_id, name, address, latitude, longitude)
            VALUES ($1, $2, $3, $4, $5)
@@ -43,9 +62,12 @@ export default {
              longitude = EXCLUDED.longitude,
              updated_at = CURRENT_TIMESTAMP
            RETURNING *`,
-          [placeId, name, address || null, latitude, longitude]
+          [placeId, name, address, latitude, longitude]
         )
         syncedLocations.push(result.rows[0])
+      }
+      if (syncedLocations.length === 0) {
+        return sendValidationError(res, 'No valid locations provided')
       }
       return res.status(200).json(syncedLocations)
     } catch (error) {
@@ -55,7 +77,11 @@ export default {
   },
 
   async getReviewsByLocation(req, res) {
-    const { locationId } = req.params
+    const locationIdResult = parsePositiveInt(req.params.locationId, { fieldName: 'locationId' })
+    if (!locationIdResult.ok) {
+      return sendValidationError(res, locationIdResult.error)
+    }
+    const locationId = locationIdResult.value
 
     try {
       const locationResult = await pool.query(
@@ -83,10 +109,38 @@ export default {
         [locationId]
       )
 
+      /*
       const normalizedReviews = reviewsResult.rows.map((review) => ({
         ...review,
         image_urls: parseImageUrls(review.image_url),
       }))
+      */
+
+      const normalizedReviews = await Promise.all(
+        reviewsResult.rows.map(async (review) => {
+          const filePaths = parseImageUrls(review.image_url)
+
+          const signedUrls = await Promise.all(
+            filePaths
+              .filter(Boolean)
+              .map(async (filePath) => {
+                const file = bucket.file(filePath)
+
+                const [url] = await file.getSignedUrl({
+                  action: 'read',
+                  expires: Date.now() + 60 * 60 * 1000,
+                })
+
+                return url
+              })
+          )
+
+          return {
+            ...review,
+            image_urls: signedUrls.filter(Boolean),
+          }
+        })
+      )
 
       return res.status(200).json({
         location: locationResult.rows[0],
@@ -99,15 +153,11 @@ export default {
   },
 
   async getLocationsWithReviewSummary(req, res) {
-    const { locationIds } = req.query
-    if (!locationIds) {
-      return res.status(400).json({ message: 'locationIds query param is required' })
+    const parsedIdsResult = parseLocationIdsQuery(req.query.locationIds)
+    if (!parsedIdsResult.ok) {
+      return sendValidationError(res, parsedIdsResult.error)
     }
-
-    const parsedIds = String(locationIds)
-      .split(',')
-      .map((id) => Number(id))
-      .filter((id) => Number.isInteger(id) && id > 0)
+    const parsedIds = parsedIdsResult.value
 
     if (parsedIds.length === 0) {
       return res.status(200).json([])
@@ -195,10 +245,38 @@ export default {
         [userId]
       )
 
-      const normalizedReviews = result.rows.map((review) => ({
+      /*
+      const normalizedReviews = reviewsResult.rows.map((review) => ({
         ...review,
         image_urls: parseImageUrls(review.image_url),
       }))
+      */
+
+      const normalizedReviews = await Promise.all(
+        result.rows.map(async (review) => {
+          const filePaths = parseImageUrls(review.image_url)
+
+          const signedUrls = await Promise.all(
+            filePaths
+              .filter(Boolean)
+              .map(async (filePath) => {
+                const file = bucket.file(filePath)
+
+                const [url] = await file.getSignedUrl({
+                  action: 'read',
+                  expires: Date.now() + 60 * 60 * 1000,
+                })
+
+                return url
+              })
+          )
+
+          return {
+            ...review,
+            image_urls: signedUrls.filter(Boolean),
+          }
+        })
+      )
 
       return res.status(200).json(normalizedReviews)
     } catch (error) {
@@ -209,11 +287,12 @@ export default {
 
   async addFavorite(req, res) {
     const userId = req.user?.id
-    const locationId = Number(req.params.locationId)
+    const locationIdResult = parsePositiveInt(req.params.locationId, { fieldName: 'locationId' })
     if (!userId) return res.status(401).json({ message: 'Unauthorized' })
-    if (!Number.isInteger(locationId) || locationId < 1) {
-      return res.status(400).json({ message: 'Valid locationId is required' })
+    if (!locationIdResult.ok) {
+      return sendValidationError(res, locationIdResult.error)
     }
+    const locationId = locationIdResult.value
 
     try {
       const locationExists = await pool.query('SELECT id FROM locations WHERE id = $1', [locationId])
@@ -237,11 +316,12 @@ export default {
 
   async removeFavorite(req, res) {
     const userId = req.user?.id
-    const locationId = Number(req.params.locationId)
+    const locationIdResult = parsePositiveInt(req.params.locationId, { fieldName: 'locationId' })
     if (!userId) return res.status(401).json({ message: 'Unauthorized' })
-    if (!Number.isInteger(locationId) || locationId < 1) {
-      return res.status(400).json({ message: 'Valid locationId is required' })
+    if (!locationIdResult.ok) {
+      return sendValidationError(res, locationIdResult.error)
     }
+    const locationId = locationIdResult.value
 
     try {
       await pool.query('DELETE FROM favorites WHERE user_id = $1 AND location_id = $2', [userId, locationId])
@@ -253,16 +333,22 @@ export default {
   },
 
   async createReview(req, res) {
-    const { locationId } = req.params
-    const { rating, description } = req.body
+    const locationIdResult = parsePositiveInt(req.params.locationId, { fieldName: 'locationId' })
+    const ratingResult = parseRating(req.body?.rating)
+    const descriptionResult = validateDescription(req.body?.description)
     const userId = req.user?.id
 
     if (!userId) return res.status(401).json({ message: 'Unauthorized' })
-    if (rating == null || Number(rating) < 0 || Number(rating) > 5) {
-      return res.status(400).json({ message: 'Rating must be between 0 and 5' })
-    }
-    if (!description?.trim()) {
-      return res.status(400).json({ message: 'Description is required' })
+    if (!locationIdResult.ok) return sendValidationError(res, locationIdResult.error)
+    if (!ratingResult.ok) return sendValidationError(res, ratingResult.error)
+    if (!descriptionResult.ok) return sendValidationError(res, descriptionResult.error)
+
+    const locationId = locationIdResult.value
+    const rating = ratingResult.value
+    const description = descriptionResult.value
+
+    if ((req.files || []).length > LIMITS.REVIEW_IMAGES_MAX) {
+      return sendValidationError(res, `Too many image files (max ${LIMITS.REVIEW_IMAGES_MAX})`)
     }
 
     try {
@@ -274,8 +360,20 @@ export default {
         return res.status(409).json({ message: 'You have already reviewed this location' })
       }
 
-      const uploadedImageUrls = (req.files || []).map(
-        (file) => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`
+      const uploadedImageUrls = await Promise.all(
+        (req.files || []).map(async (file) => {
+          const ext = sanitizeImageExtension(file.originalname)
+          const fileName = `reviews/${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`
+          const blob = bucket.file(fileName)
+          await blob.save(file.buffer, {
+            metadata: {
+              contentType: file.mimetype,
+            },
+          })
+          //await blob.makePublic()
+          //return `https://storage.googleapis.com/${bucket.name}/${fileName}`
+          return fileName
+        })
       )
       const storedImageValue = uploadedImageUrls.length > 0 ? JSON.stringify(uploadedImageUrls) : null
 
@@ -283,7 +381,7 @@ export default {
         `INSERT INTO reviews (user_id, location_id, rating, description, image_url)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [userId, locationId, rating, description.trim(), storedImageValue]
+        [userId, locationId, rating, description, storedImageValue]
       )
       return res.status(201).json(result.rows[0])
     } catch (error) {
@@ -296,16 +394,30 @@ export default {
   },
 
   async updateReview(req, res) {
-    const { reviewId } = req.params
-    const { rating, description, existingImageUrls } = req.body
+    const reviewIdResult = parsePositiveInt(req.params.reviewId, { fieldName: 'reviewId' })
+    const ratingResult = parseRating(req.body?.rating)
+    const descriptionResult = validateDescription(req.body?.description)
     const userId = req.user?.id
 
     if (!userId) return res.status(401).json({ message: 'Unauthorized' })
-    if (rating == null || Number(rating) < 0 || Number(rating) > 5) {
-      return res.status(400).json({ message: 'Rating must be between 0 and 5' })
+    if (!reviewIdResult.ok) return sendValidationError(res, reviewIdResult.error)
+    if (!ratingResult.ok) return sendValidationError(res, ratingResult.error)
+    if (!descriptionResult.ok) return sendValidationError(res, descriptionResult.error)
+
+    const reviewId = reviewIdResult.value
+    const rating = ratingResult.value
+    const description = descriptionResult.value
+
+    const hasExistingUrlsField = req.body?.existingImageUrls != null && req.body?.existingImageUrls !== ''
+    let requestedExistingUrls = null
+    if (hasExistingUrlsField) {
+      const existingUrlsResult = parseExistingImageUrls(req.body.existingImageUrls)
+      if (!existingUrlsResult.ok) return sendValidationError(res, existingUrlsResult.error)
+      requestedExistingUrls = existingUrlsResult.value
     }
-    if (!description?.trim()) {
-      return res.status(400).json({ message: 'Description is required' })
+
+    if ((req.files || []).length + (requestedExistingUrls?.length ?? 0) > LIMITS.REVIEW_IMAGES_MAX) {
+      return sendValidationError(res, `Too many images (max ${LIMITS.REVIEW_IMAGES_MAX})`)
     }
 
     try {
@@ -313,14 +425,25 @@ export default {
       if (!ownership.rows[0]) return res.status(404).json({ message: 'Review not found' })
       if (ownership.rows[0].user_id !== userId) return res.status(403).json({ message: 'Forbidden' })
 
-      const uploadedImageUrls = (req.files || []).map(
-        (file) => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`
+      const uploadedImageUrls = await Promise.all(
+        (req.files || []).map(async (file) => {
+          const ext = sanitizeImageExtension(file.originalname)
+          const fileName = `reviews/${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`
+          const blob = bucket.file(fileName)
+          await blob.save(file.buffer, {
+            metadata: {
+              contentType: file.mimetype,
+            },
+          })
+          //await blob.makePublic()
+          //return `https://storage.googleapis.com/${bucket.name}/${fileName}`
+          return fileName
+        })
       )
       const currentImageUrls = parseImageUrls(ownership.rows[0].image_url)
-      const requestedExistingUrls = existingImageUrls == null
+      const keptExistingUrls = requestedExistingUrls == null
         ? currentImageUrls
-        : parseImageUrls(existingImageUrls)
-      const keptExistingUrls = requestedExistingUrls.filter((url) => currentImageUrls.includes(url))
+        : requestedExistingUrls.filter((url) => currentImageUrls.includes(url))
       const nextImageUrls = [...keptExistingUrls, ...uploadedImageUrls].slice(0, 2)
       const storedImageValue = nextImageUrls.length > 0 ? JSON.stringify(nextImageUrls) : null
 
@@ -329,7 +452,7 @@ export default {
          SET rating = $1, description = $2, image_url = $3, updated_at = CURRENT_TIMESTAMP, is_edited = TRUE
          WHERE id = $4
          RETURNING *`,
-        [rating, description.trim(), storedImageValue, reviewId]
+        [rating, description, storedImageValue, reviewId]
       )
 
       return res.status(200).json(result.rows[0])
@@ -340,9 +463,13 @@ export default {
   },
 
   async deleteReview(req, res) {
-    const { reviewId } = req.params
+    const reviewIdResult = parsePositiveInt(req.params.reviewId, { fieldName: 'reviewId' })
     const userId = req.user?.id
     if (!userId) return res.status(401).json({ message: 'Unauthorized' })
+    if (!reviewIdResult.ok) {
+      return sendValidationError(res, reviewIdResult.error)
+    }
+    const reviewId = reviewIdResult.value
 
     try {
       const ownership = await pool.query('SELECT user_id FROM reviews WHERE id = $1', [reviewId])

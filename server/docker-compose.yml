@@ -7,6 +7,12 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+
+    environment: # LOCAL DEV
+      GOOGLE_APPLICATION_CREDENTIALS: /app/royal-flush-storage-key.json
+    volumes: # LOCAL DEV
+      - ./royal-flush-storage-key.json:/app/royal-flush-storage-key.json:ro
+
     ports:
       - "3001:3001"
     restart: unless-stopped

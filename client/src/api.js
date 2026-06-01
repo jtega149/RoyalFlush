@@ -1,6 +1,69 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+export class ApiError extends Error {
+  constructor(message, { status, retryAt } = {}) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.isRateLimited = status === 429
+    this.retryAt = retryAt ?? null
+  }
+}
+
+export function getErrorMessage(error, fallback = 'Something went wrong') {
+  if (error instanceof ApiError) return error.message
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
+function getRetryAt(response) {
+  const retryAfter = response.headers.get('Retry-After')
+  if (retryAfter) {
+    const retrySeconds = Number(retryAfter)
+    if (Number.isFinite(retrySeconds)) {
+      return new Date(Date.now() + retrySeconds * 1000)
+    }
+
+    const retryDate = Date.parse(retryAfter)
+    if (!Number.isNaN(retryDate)) {
+      return new Date(retryDate)
+    }
+  }
+
+  const resetHeader = response.headers.get('RateLimit-Reset')
+  if (!resetHeader) return null
+
+  const resetValue = Number(resetHeader)
+  if (!Number.isFinite(resetValue)) return null
+
+  // express-rate-limit sends a UTC epoch timestamp in seconds.
+  if (resetValue >= 1_000_000_000) {
+    return new Date(resetValue * 1000)
+  }
+
+  return new Date(Date.now() + resetValue * 1000)
+}
+
+function formatRetryHint(retryAt) {
+  if (!retryAt) return ''
+
+  const waitMs = retryAt.getTime() - Date.now()
+  if (waitMs <= 0) return ''
+
+  const totalSeconds = Math.ceil(waitMs / 1000)
+  if (totalSeconds < 60) {
+    return ' Try again in about a minute.'
+  }
+
+  const minutes = Math.ceil(totalSeconds / 60)
+  if (minutes === 1) {
+    return ' Try again in about 1 minute.'
+  }
+
+  return ` Try again in about ${minutes} minutes.`
+}
+
 async function request(path, options = {}) {
   const isFormData = options.body instanceof FormData
   const response = await fetch(`${API_BASE}${path}`, {
@@ -22,8 +85,18 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message = data?.message || 'Request failed'
-    throw new Error(message)
+    const fallbackMessage =
+      response.status === 429
+        ? 'Too many requests. Please slow down.'
+        : 'Request failed'
+    const baseMessage = data?.message || fallbackMessage
+    const retryAt = response.status === 429 ? getRetryAt(response) : null
+    const message =
+      response.status === 429
+        ? `${baseMessage}${formatRetryHint(retryAt)}`
+        : baseMessage
+
+    throw new ApiError(message, { status: response.status, retryAt })
   }
 
   return data

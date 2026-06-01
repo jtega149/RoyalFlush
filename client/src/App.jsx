@@ -4,7 +4,7 @@ import './App.css';
 import './styles/restroomCards.css';
 import MapView from './components/MapView';
 import BrandLogo from './components/BrandLogo';
-import { authApi, mapsApi, reviewsApi } from './api';
+import { ApiError, authApi, getErrorMessage, mapsApi, reviewsApi } from './api';
 import ReviewsPage from './components/ReviewsPage';
 import BookmarksPage from './components/BookmarksPage';
 import MyReviewsPage from './components/MyReviewsPage';
@@ -74,7 +74,11 @@ function App() {
       setFavorites(data);
       setFavoriteLocationIds(data.map((favorite) => favorite.location_id));
     } catch (favoriteError) {
-      console.warn('Favorites unavailable:', favoriteError?.message || favoriteError);
+      if (favoriteError instanceof ApiError && favoriteError.isRateLimited) {
+        setError(favoriteError.message);
+      } else {
+        console.warn('Favorites unavailable:', getErrorMessage(favoriteError));
+      }
       setFavorites([]);
       setFavoriteLocationIds([]);
     }
@@ -135,7 +139,7 @@ function App() {
       const coords = await mapsApi.geocode(q);
       setLocation(coords);
     } catch (geoErr) {
-      setError(geoErr.message || 'Could not find that location.');
+      setError(getErrorMessage(geoErr, 'Could not find that location.'));
     } finally {
       setLoading(false);
     }
@@ -197,7 +201,11 @@ function App() {
         setReviewSummaryByLocation(summaryById);
         setRatingsReady(true);
       } catch (apiError) {
-        console.warn('Review sync unavailable (map still works):', apiError?.message || apiError);
+        if (apiError instanceof ApiError && apiError.isRateLimited) {
+          setError(apiError.message);
+        } else {
+          console.warn('Review sync unavailable (map still works):', getErrorMessage(apiError));
+        }
         setRatingsReady(true);
       }
     }, 400);
@@ -286,7 +294,7 @@ function App() {
       }
       await loadFavorites();
     } catch (favoriteError) {
-      setError(favoriteError.message || 'Unable to update favorites');
+      setError(getErrorMessage(favoriteError, 'Unable to update favorites'));
     } finally {
       setFavoriteLoadingId(null);
     }
