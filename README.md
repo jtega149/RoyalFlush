@@ -63,7 +63,28 @@ PGHOST=/cloudsql/....
 - NO ```PGPORT```
 - SAME ```PGUSER```, ```PGPASSWORD```, ```PGDATABASE```
 
+## Redeploying
+```bash
+# 1. Build & push server (from repo root or ./server)
+docker build --platform linux/amd64 -t REGION-docker.pkg.dev/PROJECT/REPO/server:latest ./server
+docker push REGION-docker.pkg.dev/PROJECT/REPO/server:latest
 
+# 2. Redeploy API (same image tag or new tag)
+gcloud run deploy YOUR-API-SERVICE --image=.../server:latest --region=REGION ...
+
+# 3. Build & push client (no VITE_API_URL needed; still need Maps key if you use it)
+docker build --platform linux/amd64 \
+  --build-arg VITE_GOOGLE_MAPS_API_KEY="..." \
+  -t REGION-docker.pkg.dev/PROJECT/REPO/client:latest ./client
+docker push REGION-docker.pkg.dev/PROJECT/REPO/client:latest
+
+# 4. Redeploy web WITH API_UPSTREAM
+export API_URL="$(gcloud run services describe YOUR-API-SERVICE --region=REGION --format='value(status.url)')"
+gcloud run deploy YOUR-WEB-SERVICE \
+  --image=.../client:latest \
+  --region=REGION \
+  --set-env-vars="API_UPSTREAM=${API_URL}"
+```
 
 
 ### Resources for Christoper:

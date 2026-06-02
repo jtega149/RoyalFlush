@@ -1,5 +1,6 @@
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Empty VITE_API_URL = same-origin (nginx proxy in prod, Vite proxy in dev).
+// Set VITE_API_URL=http://localhost:3001 to call the API directly in local dev.
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 export class ApiError extends Error {
   constructor(message, { status, retryAt } = {}) {

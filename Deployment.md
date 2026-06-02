@@ -95,26 +95,22 @@ app.use(cors({
 
 Set `CLIENT_URL=https://royalflush-web-xxxxx.run.app` (your real Cloud Run web URL) on the API service.
 
-### 3. Auth cookies (different domains)
+### 3. Same-origin API proxy (auth cookies)
 
-If the **client** and **API** are on different hostnames (two Cloud Run services), browsers treat cookies as cross-site. Update cookie options in `server/controllers/auth.js` for production:
+The **client** nginx container proxies `/auth`, `/reviews`, and `/api` to the API Cloud Run service. The browser only talks to the web URL, so JWT cookies are first-party (`SameSite=Lax` in `server/controllers/auth.js`).
 
-- `secure: true`
-- `sameSite: 'none'` (not `'strict'`)
-
-Keep `httpOnly: true`. Login only works from the real HTTPS frontend URL.
+Set **`API_UPSTREAM`** on the **web** Cloud Run service to your API URL (e.g. `https://royalflush-api-….run.app`). Do **not** bake the API URL into `VITE_API_URL` for production builds (leave empty for same-origin fetches).
 
 ### 4. Do not ship the GCS key file to Cloud Run
 
 Locally you mount `royal-flush-storage-key.json`. In production, Cloud Run should use the **service account attached to the service** (Application Default Credentials). Remove the volume mount from production deploy; grant the service account access to your bucket (Phase 4).
 
-### 5. Client build-time API URL
+### 5. Client image build
 
-`client/Dockerfile` bakes in `VITE_API_URL` at **build** time. When building the client image for production:
+`VITE_API_URL` defaults to empty (same-origin). `VITE_GOOGLE_MAPS_API_KEY` is still required at build time. After deploy, set **`API_UPSTREAM`** on the web service to the API URL.
 
 ```bash
 docker build \
-  --build-arg VITE_API_URL=https://YOUR-API-URL.run.app \
   --build-arg VITE_GOOGLE_MAPS_API_KEY=your-maps-key \
   -t royalflush-client:latest \
   ./client
@@ -333,7 +329,6 @@ Common failures: wrong `PGHOST`, SSL on socket, missing `roles/cloudsql.client`,
 export API_URL="$(gcloud run services describe $API_SERVICE --region=$REGION --format='value(status.url)')"
 
 docker build \
-  --build-arg VITE_API_URL="$API_URL" \
   --build-arg VITE_GOOGLE_MAPS_API_KEY="your-maps-key" \
   -t "${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/client:latest" \
   ./client
@@ -345,7 +340,8 @@ gcloud run deploy "$WEB_SERVICE" \
   --region="$REGION" \
   --platform=managed \
   --allow-unauthenticated \
-  --port=80
+  --port=80 \
+  --set-env-vars="API_UPSTREAM=${API_URL}"
 ```
 
 Get the web URL and **update the API** `CLIENT_URL` + redeploy or update env if you used a placeholder.
@@ -354,7 +350,9 @@ Restrict **Google Maps API key** in [Google Cloud Console](https://console.cloud
 
 ---
 
-## Phase 8 — Environment variable checklist (API)
+## Phase 8 — Environment variable checklist
+
+### API service
 
 | Variable | Example / notes |
 |----------|-----------------|
@@ -370,6 +368,12 @@ Restrict **Google Maps API key** in [Google Cloud Console](https://console.cloud
 | `CLIENT_URL` | `https://royalflush-web-....run.app` |
 
 `PG*` match what `server/config/database.js` already reads.
+
+### Web (client) service
+
+| Variable | Example / notes |
+|----------|-----------------|
+| `API_UPSTREAM` | `https://royalflush-api-….run.app` (no trailing slash) |
 
 ---
 
@@ -388,9 +392,11 @@ Restrict **Google Maps API key** in [Google Cloud Console](https://console.cloud
 | Symptom | Likely cause |
 |---------|----------------|
 | `Failed to initialize database tables` on startup | Wrong credentials, SSL on socket, or Cloud SQL not attached to service |
-| Login works locally, not in prod | CORS, `CLIENT_URL`, or `sameSite` / `secure` cookie settings |
+| Login works in Chrome only, not Safari | Old cross-site cookie setup; redeploy client with nginx proxy + `API_UPSTREAM` |
+| Login works locally, not in prod | Missing `API_UPSTREAM` on web service, or `CLIENT_URL` mismatch on API |
 | Images fail to upload | Service account lacks `objectAdmin` on bucket; wrong `GCS_BUCKET_NAME` |
-| Frontend calls `localhost:3001` | Client image built without correct `VITE_API_URL` |
+| Frontend calls `localhost:3001` in prod | Client built with `VITE_API_URL=http://localhost:3001`; rebuild with empty `VITE_API_URL` |
+| Web container exits on start | `API_UPSTREAM` not set on Cloud Run web service |
 | 403 from Maps | API key HTTP referrer restrictions |
 
 ---
@@ -403,7 +409,7 @@ Restrict **Google Maps API key** in [Google Cloud Console](https://console.cloud
 4. Create service account + IAM (Cloud SQL client, GCS).
 5. Apply code changes (SSL, CORS, cookies).
 6. Build & push **server** image → deploy API with `--add-cloudsql-instances`.
-7. Build **client** with `VITE_API_URL` → deploy web → set `CLIENT_URL` on API.
+7. Build **client** → deploy web with `API_UPSTREAM` → set `CLIENT_URL` on API.
 8. Test login, reviews, image upload, geocode.
 
 ---
@@ -414,7 +420,7 @@ Restrict **Google Maps API key** in [Google Cloud Console](https://console.cloud
 |---|--------|------------|
 | Postgres | Render or docker-compose Postgres | Cloud SQL |
 | GCS auth | JSON key file in docker-compose | Cloud Run service account |
-| Client API URL | `http://localhost:3001` | Cloud Run API URL baked at build |
+| Client API URL | Same-origin (`/auth`, …) via Vite proxy; optional direct `VITE_API_URL` | Same-origin via nginx proxy; `API_UPSTREAM` on web service |
 | DB connection | `PGHOST=...render.com` + SSL | `/cloudsql/...` socket |
 
 You do **not** run a Postgres Docker container in production on GCP for this setup.

@@ -9,6 +9,19 @@ import {
   sendValidationError,
 } from '../utils/validation.js'
 
+const TOKEN_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000
+
+function tokenCookieOptions() {
+    const isProd = process.env.NODE_ENV === 'production'
+    return {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'lax' : 'strict',
+        maxAge: TOKEN_COOKIE_MAX_AGE,
+        path: '/',
+    }
+}
+
 export const loginUser = async (req, res) => {
     const emailResult = validateEmail(req.body?.email)
     if (!emailResult.ok) {
@@ -46,12 +59,7 @@ export const loginUser = async (req, res) => {
             expiresIn: '1h'
         }
     )
-    res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000
-    })
+    res.cookie('token', token, tokenCookieOptions())
     res.status(200).json({message: 'Login successful'})
 }
 export const signUpUser = async (req, res) => {
@@ -96,7 +104,7 @@ export const signUpUser = async (req, res) => {
 }
 
 export const logoutUser = async (req, res) => {
-    res.clearCookie('token')
+    res.clearCookie('token', tokenCookieOptions())
     res.status(200).json({message: 'Logout successful'})
 }
 
