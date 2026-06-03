@@ -2,32 +2,18 @@
 
 Making using the bathroom, quick, simple, and insightful.
 
-### Contributors
-- John Ortega
-- Christopher Persaud
+# Royal Flush App Set Up
 
-### Structure of project
+## Frontend
 ```bash
-React (static frontend)
-    ↓
-Cloud CDN + Cloud Storage (or Firebase Hosting)
-    ↓
-Node.js API
-    ↓
-Cloud Run (containerized backend)
-    ↓
-Database (Cloud SQL / Firestore)
+cd client
+npm install
+npm run dev
 ```
 
-### To dos:
-- Set up Google Cloud project
-- Add login/signup along with google OAuth as well to replace github oauth (Should be somewhere in Google Cloud Console)
-- Change UI design to look cool asf and explore different map designs
-- Create docker files in client and server to containerize
-- Set up google cloud account, blah blah we will go more into depth on this cloud stuff later
+## Backend
 
-
-## Test DB Locally
+### To test on Cloud SQL instance
 
 Install [Cloud SQL Auth Proxy](https://docs.cloud.google.com/sql/docs/postgres/connect-auth-proxy) if you dont have it
 
@@ -53,6 +39,55 @@ PGUSER=USERNAME_WE_SET
 PGPASSWORD=PASSWORD_WE_SET
 PGDATABASE=DATABASE_NAME_WE_SET
 ```
+
+### To test on local database
+
+A **local Postgres** instance uses the same database engine as production and keeps test data separate from Cloud SQL, so preferably use this.
+
+**1. Start Postgres in Docker** (from any directory):
+
+```bash
+docker run -d \
+  --name royalflush-postgres \
+  -e POSTGRES_USER=royalflush \
+  -e POSTGRES_PASSWORD=royalflush \
+  -e POSTGRES_DB=royalflush \
+  -p 5433:5432 \
+  postgres:16-alpine
+```
+
+**2. Configure the server** — copy `server/.env.example` to `server/.env` and set at least:
+
+```bash
+PGHOST=127.0.0.1
+PGPORT=5433
+PGUSER=royalflush
+PGPASSWORD=royalflush
+PGDATABASE=royalflush
+JWT_SECRET=any-long-random-string-for-local-dev
+```
+
+Fill in `GCS_BUCKET_NAME`, `GOOGLE_MAPS_API_KEY`, and `GOOGLE_APPLICATION_CREDENTIALS` if you need uploads, address search, or other Google APIs locally.
+
+**3. Run the API** — tables are created automatically when the server starts:
+
+```bash
+cd server
+npm install
+npm run dev
+```
+
+**Useful commands**
+
+```bash
+# Stop / start the DB container (data persists in the container until removed)
+docker stop royalflush-postgres
+docker start royalflush-postgres
+
+# Wipe and recreate tables (destructive so pls dont do in prod cloud sql)
+npm run reset
+```
+
 
 ## After local works
 ### We can then deploy to Cloud Run
@@ -90,5 +125,21 @@ gcloud run deploy YOUR-WEB-SERVICE \
 ### Resources for Christoper:
 - To learn / Get started with docker: https://youtu.be/DQdB7wFEygo?si=esimDqHlx5G8EWE4
 
+### Contributors
+- John Ortega
+- Christopher Persaud
+
+### Structure of project
+```bash
+React (static frontend)
+    ↓
+Cloud CDN + Cloud Storage (or Firebase Hosting)
+    ↓
+Node.js API
+    ↓
+Cloud Run (containerized backend)
+    ↓
+Database (Cloud SQL / Firestore)
+```
 
 - Use redis to run multiple server instances
