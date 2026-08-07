@@ -19,14 +19,6 @@ function uploadReviewImages(req, res, next) {
   })
 }
 
-const syncLocationsLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many location sync requests. Slow down.' },
-})
-
 const reviewWriteLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 20,
@@ -41,30 +33,11 @@ const reviewWriteLimiter = rateLimit({
 
 const router = express.Router()
 
-router.post('/locations/sync', syncLocationsLimiter, reviewsController.syncLocations)
-router.get('/locations/summary', reviewsController.getLocationsWithReviewSummary)
 router.get('/mine', authenticateToken, reviewsController.getMyReviews)
-router.get('/favorites', authenticateToken, reviewsController.getFavorites)
 router.post('/favorites/:locationId', authenticateToken, reviewsController.addFavorite)
 router.delete('/favorites/:locationId', authenticateToken, reviewsController.removeFavorite)
-router.get('/location/:locationId', reviewsController.getReviewsByLocation)
-router.post(
-  '/location/:locationId',
-  authenticateToken,
-  reviewWriteLimiter,
-  uploadReviewImages,
-  reviewsController.createReview
-)
-router.put('/:reviewId', 
-    authenticateToken,
-    reviewWriteLimiter,
-    uploadReviewImages,
-    reviewsController.updateReview
-)
-router.delete('/:reviewId', 
-    authenticateToken,
-    reviewWriteLimiter,
-    reviewsController.deleteReview
-)
+router.post('/location/:locationId', authenticateToken, reviewWriteLimiter, uploadReviewImages, reviewsController.createReview)
+router.put('/:reviewId', authenticateToken, reviewWriteLimiter, uploadReviewImages, reviewsController.updateReview)
+router.delete('/:reviewId', authenticateToken, reviewWriteLimiter, reviewsController.deleteReview)
 
 export default router
