@@ -137,15 +137,15 @@ export const mapsApi = {
 
 export const reviewsApi = {
   syncLocations: (locations) =>
-    request('/reviews/locations/sync', {
+    request('/locations/sync', {
       method: 'POST',
       body: JSON.stringify({ locations }),
     }),
-  getLocationReviews: (locationId) => request(`/reviews/location/${locationId}`),
+  getLocationReviews: (locationId) => request(`/locations/location/${locationId}`),
   getLocationsSummary: (locationIds) =>
-    request(`/reviews/locations/summary?locationIds=${locationIds.join(',')}`),
+    request(`/locations/summary?locationIds=${locationIds.join(',')}`),
   getMyReviews: () => request('/reviews/mine'),
-  getFavorites: () => request('/reviews/favorites'),
+  getFavorites: () => request('/locations/favorites'),
   addFavorite: (locationId) =>
     request(`/reviews/favorites/${locationId}`, {
       method: 'POST',

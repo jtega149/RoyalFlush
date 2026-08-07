@@ -6,6 +6,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import reviewsRoutes from './routes/reviewsRoutes.js'
+import locationsRoutes from './routes/locationsRoutes.js'
 import { seedAllTables } from './config/seedTables.js'
 import rateLimit from 'express-rate-limit'
 import { handleJsonSyntaxError, handleUploadError } from './middleware/errorHandler.js'
@@ -35,10 +36,7 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1)
 }
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.CLIENT_URL,
-].filter(Boolean)
+const allowedOrigins = ['http://localhost:5173', process.env.CLIENT_URL].filter(Boolean)
 
 app.use(cors({
   origin: allowedOrigins,
@@ -53,6 +51,7 @@ app.use(cookieParser());
 // Routes
 app.use('/auth', authRoutes)
 app.use('/reviews', reviewsRoutes)
+app.use('/locations', locationsRoutes)
 
 app.get('/api/geocode', geocodeLimiter, async (req, res) => {
   const addressResult = sanitizeString(req.query.address, {
