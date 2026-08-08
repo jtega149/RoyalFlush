@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, refractor]
+  pull_request:
+    branches: [main, refractor]
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+    steps:
+      - uses: actions/checkout@v4 # Clones repo onto GitHub Actions runner (Fresh Ubuntu VM)
+      - uses: actions/setup-node@v4 # Installs Node.js version 20 on the runner
+        with:
+          node-version: '20'
+          cache: 'npm' # Caches npm packages
+          cache-dependency-path: ./client/package-lock.json # Caches package-lock.json file
+      - run: npm ci # Installs dependencies from package-lock.json
+      - run: npm run lint --if-present # Runs linting if it exists
+      - run: npm test -- --watchAll=false --if-present # Runs tests if they exist
+      - run: npm run build # Builds the client
+  
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./server
+    steps:
+      - uses: actions/checkout@v4 # Clones repo onto GitHub Actions runner (Fresh Ubuntu VM)
+      - uses: actions/setup-node@v4 # Installs Node.js version 20 on the runner
+        with:
+          node-version: '20'
+          cache: 'npm' # Caches npm packages
+          cache-dependency-path: ./server/package-lock.json # Caches package-lock.json file
+      - run: npm ci # Installs dependencies from package-lock.json
+      - run: npm run lint --if-present
+      - run: npm test --if-present
