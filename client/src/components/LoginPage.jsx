@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react'
+import React, {useState} from 'react'
 import { authApi, getErrorMessage } from '../api'
 import '../styles/LoginPage.css'
 
@@ -24,7 +24,7 @@ const LoginPage = () => {
         try {
             setLoading(true)
             setError('')
-            const data = await authApi.login(user.email, user.password)
+            await authApi.login(user.email, user.password)
             window.location.href = '/'
         } catch (err) {
             console.error(err)

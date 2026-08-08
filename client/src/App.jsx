@@ -298,7 +298,7 @@ function App() {
     } finally {
       setFavoriteLoadingId(null);
     }
-  }, [loadFavorites, user]);
+  }, [loadFavorites, navigate, user]);
 
   const handleLogout = async () => {
     try {

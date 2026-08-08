@@ -103,13 +103,6 @@ async function request(path, options = {}) {
   return data
 }
 
-/*
-export const authApi = {
-  getSession: () => request('/auth/login/success'),
-  logout: () => request('/auth/logout'),
-  githubLoginUrl: `${API_BASE}/auth/github`,
-}*/
-
 export const authApi = {
   getCurrentUser: () => request('/auth/me'),
   logout: () => request('/auth/logout', {method: 'POST'}),

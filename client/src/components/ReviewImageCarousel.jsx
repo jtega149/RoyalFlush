@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import './ReviewImageCarousel.css';
 
 export default function ReviewImageCarousel({ imageUrls = [], alt = 'Review upload' }) {
   const urls = imageUrls.filter(Boolean);
+  const urlsKey = urls.join('|');
   const [index, setIndex] = useState(0);
+  const [prevUrlsKey, setPrevUrlsKey] = useState(urlsKey);
 
-  useEffect(() => {
+  // Reset slide when the image list changes (preferred over setState in an effect).
+  if (urlsKey !== prevUrlsKey) {
+    setPrevUrlsKey(urlsKey);
     setIndex(0);
-  }, [urls.join('|')]);
+  }
 
   if (urls.length === 0) {
     return null;
