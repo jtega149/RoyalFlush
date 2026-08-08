@@ -1,5 +1,5 @@
 import express from 'express'
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
+import { reviewWriteLimiter } from '../utils/RateLimiters.js'
 import reviewsController from '../controllers/reviewsController.js'
 import upload from '../config/upload.js'
 import { authenticateToken } from '../middleware/authMiddleware.js'
@@ -18,18 +18,6 @@ function uploadReviewImages(req, res, next) {
     next()
   })
 }
-
-const reviewWriteLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 20,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => {
-      if (req.user?.id != null) return String(req.user.id)
-      return ipKeyGenerator(req.ip)
-    },
-    message: { message: 'Too many reviews written. Slow down.' },
-})
 
 const router = express.Router()
 
