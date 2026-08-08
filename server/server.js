@@ -19,6 +19,7 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many requests, please try again later.' },
 })
+
 const geocodeLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
