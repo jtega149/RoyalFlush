@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, refractor]
   pull_request:
-    branches: [main, refractor]
+    branches: main
 
 jobs:
   client:
@@ -21,7 +21,7 @@ jobs:
           cache-dependency-path: ./client/package-lock.json # Caches package-lock.json file
       - run: npm ci # Installs dependencies from package-lock.json
       - run: npm run lint --if-present # Runs linting if it exists
-      - run: npm test -- --watchAll=false --if-present # Runs tests if they exist
+      - run: npm test --if-present -- --watchAll=false # Runs tests if they exist
       - run: npm run build # Builds the client
   
   server:
