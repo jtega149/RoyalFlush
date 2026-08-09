@@ -8,25 +8,10 @@ import authRoutes from './routes/auth.js'
 import reviewsRoutes from './routes/reviewsRoutes.js'
 import locationsRoutes from './routes/locationsRoutes.js'
 import { seedAllTables } from './config/seedTables.js'
-import rateLimit from 'express-rate-limit'
+import { globalLimiter, geocodeLimiter } from './utils/RateLimiters.js'
 import { handleJsonSyntaxError, handleUploadError } from './middleware/errorHandler.js'
 import { sanitizeString, sendValidationError, LIMITS } from './utils/validation.js'
-
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
-  standardHeaders: true,  // sends RateLimit-* headers
-  legacyHeaders: false,
-  message: { message: 'Too many requests, please try again later.' },
-})
-
-const geocodeLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many address searches. Slow down.' },
-})
+import redisClient from './config/redis.js'
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -53,7 +38,6 @@ app.use(cookieParser());
 app.use('/auth', authRoutes)
 app.use('/reviews', reviewsRoutes)
 app.use('/locations', locationsRoutes)
-
 app.get('/api/geocode', geocodeLimiter, async (req, res) => {
   const addressResult = sanitizeString(req.query.address, {
     maxLength: LIMITS.GEOCODE_ADDRESS_MAX,
@@ -69,7 +53,22 @@ app.get('/api/geocode', geocodeLimiter, async (req, res) => {
       message: 'Server is missing GOOGLE_MAPS_API_KEY (used for address search).',
     })
   }
+
+  const redisKey = `geocode:v1:${address.toLowerCase().replace(/\s+/g, '_')}`
+
   try {
+    //const cacheStarted = Date.now()
+    const cachedResult = await redisClient.get(redisKey)
+    if (cachedResult) {
+      //console.log(`geocode HIT ${Date.now() - cacheStarted}ms`, redisKey)
+      return res.json(JSON.parse(cachedResult))
+    }
+  } catch (err) {
+    console.error('Redis get failed, continuing to fetch from Google:', err)
+  }
+
+  try {
+    //const missStarted = Date.now()
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${key}`
     const googleRes = await fetch(url)
     const data = await googleRes.json()
@@ -81,7 +80,16 @@ app.get('/api/geocode', geocodeLimiter, async (req, res) => {
         message: data.error_message || `Geocoding failed (${data.status || 'unknown'}).`,
       })
     }
+
     const { lat, lng } = data.results[0].geometry.location
+    //console.log(`geocode MISS ${Date.now() - missStarted}ms`, redisKey)
+
+    try {
+      await redisClient.set(redisKey, JSON.stringify({ lat, lng }), { EX: 60 * 60 * 24 }) // 24 hours
+    } catch (err) {
+      console.error('Redis set failed:', err)
+    }
+
     return res.json({ lat, lng })
   } catch (err) {
     console.error('Geocode proxy error:', err)
