@@ -13,10 +13,6 @@ export const LIMITS = {
   REVIEW_IMAGES_MAX: 2,
 }
 
-function fail(error) {
-  return { ok: false, error }
-}
-
 function stripControlChars(str, { allowNewlines = false } = {}) {
   if (allowNewlines) {
     return str.replace(/\0/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
@@ -26,14 +22,14 @@ function stripControlChars(str, { allowNewlines = false } = {}) {
 
 export function sanitizeString(raw, { maxLength, allowEmpty = false, allowNewlines = false, fieldName = 'Value' } = {}) {
   if (raw == null || typeof raw !== 'string') {
-    return fail(`${fieldName} must be a string`)
+    return { ok: false, error: `${fieldName} must be a string`}
   }
   const cleaned = stripControlChars(raw, { allowNewlines }).trim()
   if (!allowEmpty && !cleaned) {
-    return fail(`${fieldName} is required`)
+    return { ok: false, error: `${fieldName} is required`}
   }
   if (cleaned.length > maxLength) {
-    return fail(`${fieldName} must be at most ${maxLength} characters`)
+    return { ok: false, error: `${fieldName} must be at most ${maxLength} characters`}
   }
   return { ok: true, value: cleaned }
 }
@@ -41,18 +37,21 @@ export function sanitizeString(raw, { maxLength, allowEmpty = false, allowNewlin
 export function parsePositiveInt(raw, { fieldName = 'ID' } = {}) {
   const num = Number(raw)
   if (!Number.isInteger(num) || num < 1) {
-    return fail(`${fieldName} must be a positive integer`)
+    return { ok: false, error: `${fieldName} must be a positive integer`}
   }
   return { ok: true, value: num }
 }
 
 export function parseRating(raw) {
   const num = Number(raw)
+  if (isNaN(num)) {
+    return { ok: false, error: 'Invalid rating value'}
+  }
   if (!Number.isFinite(num) || num < 0 || num > 5) {
-    return fail('Rating must be between 0 and 5')
+    return { ok: false, error: 'Rating must be between 0 and 5'}
   }
   if (Math.round(num * 2) / 2 !== num) {
-    return fail('Rating must be in 0.5 increments')
+    return { ok: false, error: 'Rating must be in 0.5 increments'}
   }
   return { ok: true, value: num }
 }
@@ -62,7 +61,7 @@ export function validateEmail(raw) {
   if (!strResult.ok) return strResult
   const email = strResult.value.toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return fail('Invalid email address')
+    return { ok: false, error: 'Invalid email address' }
   }
   return { ok: true, value: email }
 }
@@ -71,30 +70,30 @@ export function validateUsername(raw) {
   const strResult = sanitizeString(raw, { maxLength: LIMITS.USERNAME_MAX, fieldName: 'Username' })
   if (!strResult.ok) return strResult
   if (!/^[\w .-]+$/.test(strResult.value)) {
-    return fail('Username contains invalid characters')
+    return { ok: false, error: 'Username contains invalid characters'}
   }
   return strResult
 }
 
 export function validatePassword(raw) {
   if (typeof raw !== 'string') {
-    return fail('Password must be a string')
+    return { ok: false, error: 'Password must be a string'}
   }
   if (raw.length < LIMITS.PASSWORD_MIN) {
-    return fail(`Password must be at least ${LIMITS.PASSWORD_MIN} characters`)
+    return { ok: false, error: `Password must be at least ${LIMITS.PASSWORD_MIN} characters`}
   }
   if (raw.length > LIMITS.PASSWORD_MAX) {
-    return fail(`Password must be at most ${LIMITS.PASSWORD_MAX} characters`)
+    return { ok: false, error: `Password must be at most ${LIMITS.PASSWORD_MAX} characters`}
   }
   return { ok: true, value: raw }
 }
 
 export function validateLoginPassword(raw) {
   if (typeof raw !== 'string' || !raw) {
-    return fail('Password is required')
+    return { ok: false, error: 'Password is required'}
   }
   if (raw.length > LIMITS.PASSWORD_MAX) {
-    return fail(`Password must be at most ${LIMITS.PASSWORD_MAX} characters`)
+    return { ok: false, error: `Password must be at most ${LIMITS.PASSWORD_MAX} characters`}
   }
   return { ok: true, value: raw }
 }
@@ -110,7 +109,7 @@ export function validateDescription(raw) {
 export function validateLatitude(raw) {
   const num = Number(raw)
   if (!Number.isFinite(num) || num < -90 || num > 90) {
-    return fail('Invalid latitude')
+    return { ok: false, error: 'Invalid latitude'}
   }
   return { ok: true, value: num }
 }
@@ -118,7 +117,7 @@ export function validateLatitude(raw) {
 export function validateLongitude(raw) {
   const num = Number(raw)
   if (!Number.isFinite(num) || num < -180 || num > 180) {
-    return fail('Invalid longitude')
+    return { ok: false, error: 'Invalid longitude'}
   }
   return { ok: true, value: num }
 }
@@ -127,18 +126,18 @@ export function validatePlaceId(raw) {
   const result = sanitizeString(raw, { maxLength: LIMITS.PLACE_ID_MAX, fieldName: 'Place ID' })
   if (!result.ok) return result
   if (!/^[\w-]+$/.test(result.value)) {
-    return fail('Invalid place ID format')
+    return { ok: false, error: 'Invalid place ID format'}
   }
   return result
 }
 
 export function parseLocationIdsQuery(raw) {
   if (raw == null || raw === '') {
-    return fail('locationIds query param is required')
+    return { ok: false, error: 'locationIds query param is required'}
   }
   const parts = String(raw).split(',')
   if (parts.length > LIMITS.LOCATION_IDS_QUERY_MAX) {
-    return fail(`Too many location IDs (max ${LIMITS.LOCATION_IDS_QUERY_MAX})`)
+    return { ok: false, error: `Too many location IDs (max ${LIMITS.LOCATION_IDS_QUERY_MAX})`}
   }
   const ids = []
   for (const part of parts) {
@@ -153,7 +152,7 @@ export function parseLocationIdsQuery(raw) {
 
 export function validateLocationInput(location) {
   if (location == null || typeof location !== 'object' || Array.isArray(location)) {
-    return fail('Each location must be an object')
+    return { ok: false, error: 'Each location must be an object'}
   }
   const placeId = validatePlaceId(location.placeId)
   if (!placeId.ok) return placeId
@@ -200,11 +199,11 @@ export function normalizeImageStoragePath(raw) {
   try {
     url = new URL(value)
   } catch {
-    return fail('Invalid image path or URL')
+    return { ok: false, error: 'Invalid image path or URL'}
   }
 
   if (url.protocol !== 'https:' || !ALLOWED_GCS_URL_HOSTS.has(url.hostname)) {
-    return fail('Invalid image URL')
+    return { ok: false, error: 'Invalid image URL'}
   }
 
   const pathname = decodeURIComponent(url.pathname)
@@ -213,18 +212,18 @@ export function normalizeImageStoragePath(raw) {
   if (bucketName) {
     const expectedPrefix = `/${bucketName}/`
     if (!pathname.startsWith(expectedPrefix)) {
-      return fail('Invalid image URL')
+      return { ok: false, error: 'Invalid image URL'}
     }
     const storagePath = pathname.slice(expectedPrefix.length)
     if (!GCS_OBJECT_PATH_PATTERN.test(storagePath)) {
-      return fail('Invalid image URL path')
+      return { ok: false, error: 'Invalid image URL path'}
     }
     return { ok: true, value: storagePath }
   }
 
   const match = pathname.match(/\/reviews\/[\w.-]+$/)
   if (!match) {
-    return fail('Invalid image URL path')
+    return { ok: false, error: 'Invalid image URL path'}
   }
 
   return { ok: true, value: match[0].slice(1) }
@@ -239,18 +238,18 @@ export function parseExistingImageUrls(raw) {
     try {
       parsed = JSON.parse(trimmed)
     } catch {
-      return fail('existingImageUrls must be valid JSON')
+      return { ok: false, error: 'existingImageUrls must be valid JSON'}
     }
   } else if (Array.isArray(raw)) {
     parsed = raw
   } else {
-    return fail('existingImageUrls must be an array')
+    return { ok: false, error: 'existingImageUrls must be an array'}
   }
   if (!Array.isArray(parsed)) {
-    return fail('existingImageUrls must be an array')
+    return { ok: false, error: 'existingImageUrls must be an array'}
   }
   if (parsed.length > LIMITS.REVIEW_IMAGES_MAX) {
-    return fail(`Too many image URLs (max ${LIMITS.REVIEW_IMAGES_MAX})`)
+    return { ok: false, error: `Too many image URLs (max ${LIMITS.REVIEW_IMAGES_MAX})`}
   }
   const paths = []
   for (const item of parsed) {
