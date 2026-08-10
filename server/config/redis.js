@@ -1,19 +1,23 @@
 import { createClient } from 'redis';
 import { Redis } from '@upstash/redis'
 
-const redisClient = createClient({ url: process.env.REDIS_URL});
+const isProduction = process.env.NODE_ENV === 'production';
 
-const redisCloudClient = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-})
+async function getRedisClient() {
+    if (isProduction) {
+        return new Redis({
+            url: process.env.UPSTASH_REDIS_REST_URL,
+            token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        })
+    }
+    const redisClient = createClient({ url: process.env.REDIS_URL });
+    redisClient.on('error', (err) => {
+        console.error('Redis error:', err);
+    });
+    await redisClient.connect();
+    return redisClient;
+}
 
-redisClient.on('error', (err) => {
-    console.error('Redis error:', err);
-});
+const redisClient = await getRedisClient();
 
-await redisClient.connect();
-
-const actualRedisClient = process.env.NODE_ENV === 'production' ? redisCloudClient : redisClient;
-
-export default actualRedisClient;
+export default redisClient;
