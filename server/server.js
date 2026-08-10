@@ -57,10 +57,10 @@ app.get('/api/geocode', geocodeLimiter, async (req, res) => {
   const redisKey = `geocode:v1:${address.toLowerCase().replace(/\s+/g, '_')}`
 
   try {
-    //const cacheStarted = Date.now()
+    const cacheStarted = Date.now()
     const cachedResult = await redisClient.get(redisKey)
     if (cachedResult) {
-      //console.log(`geocode HIT ${Date.now() - cacheStarted}ms`, redisKey)
+      console.log(`geocode HIT ${Date.now() - cacheStarted}ms`, redisKey)
       return res.json(JSON.parse(cachedResult))
     }
   } catch (err) {
@@ -68,7 +68,7 @@ app.get('/api/geocode', geocodeLimiter, async (req, res) => {
   }
 
   try {
-    //const missStarted = Date.now()
+    const missStarted = Date.now()
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${key}`
     const googleRes = await fetch(url)
     const data = await googleRes.json()
@@ -82,7 +82,7 @@ app.get('/api/geocode', geocodeLimiter, async (req, res) => {
     }
 
     const { lat, lng } = data.results[0].geometry.location
-    //console.log(`geocode MISS ${Date.now() - missStarted}ms`, redisKey)
+    console.log(`geocode MISS ${Date.now() - missStarted}ms`, redisKey)
 
     try {
       await redisClient.set(redisKey, JSON.stringify({ lat, lng }), { EX: 60 * 60 * 24 }) // 24 hours
